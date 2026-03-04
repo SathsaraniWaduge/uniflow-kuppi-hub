@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Calendar, BookOpen } from "lucide-react";
+import { ExternalLink, Calendar, BookOpen, UserPlus } from "lucide-react";
 import { toast } from "sonner";
+import RegisterModal from "@/components/RegisterModal";
 
 interface NoticeWithModule {
   id: string;
@@ -41,20 +42,7 @@ export default function StudentNotices() {
     fetch();
   }, [profile]);
 
-  const handleRegister = async (notice: NoticeWithModule) => {
-    if (notice.google_form_url) {
-      window.open(notice.google_form_url, "_blank");
-    } else if (profile) {
-      const { error } = await supabase.from("kuppi_registrations").insert({
-        notice_id: notice.id,
-        student_id: profile.id,
-        student_name: profile.name,
-        student_email: "",
-      });
-      if (error) toast.error("Already registered or error");
-      else toast.success("Registered successfully!");
-    }
-  };
+  const [selectedNotice, setSelectedNotice] = useState<NoticeWithModule | null>(null);
 
   if (loading) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Loading...</p></div>;
 
@@ -93,15 +81,26 @@ export default function StudentNotices() {
               </CardHeader>
               <CardContent>
                 {notice.description && <p className="text-sm text-muted-foreground mb-4">{notice.description}</p>}
-                <Button size="sm" onClick={() => handleRegister(notice)} className="bg-gradient-primary">
-                  {notice.google_form_url ? (
-                    <>Register via Form <ExternalLink className="w-3 h-3 ml-1" /></>
-                  ) : "Register"}
+                {notice.google_form_url ? (
+                  <Button size="sm" variant="outline" onClick={() => window.open(notice.google_form_url!, "_blank")}>
+                    Register via Form <ExternalLink className="w-3 h-3 ml-1" />
+                  </Button>
+                ) : null}
+                <Button size="sm" className="bg-gradient-primary" onClick={() => setSelectedNotice(notice)}>
+                  <UserPlus className="w-3 h-3 mr-1" /> Register
                 </Button>
               </CardContent>
             </Card>
           ))}
         </div>
+      )}
+
+      {selectedNotice && (
+        <RegisterModal
+          open={!!selectedNotice}
+          onOpenChange={(o) => !o && setSelectedNotice(null)}
+          notice={selectedNotice}
+        />
       )}
     </div>
   );
