@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Star, MessageSquare } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface FeedbackItem {
   id: string;
@@ -34,7 +35,14 @@ export default function StudentFeedback() {
     fetch();
   }, [profile]);
 
-  if (loading) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Loading...</p></div>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div><div className="h-8 w-48 skeleton-shimmer rounded-lg" /><div className="h-4 w-72 skeleton-shimmer rounded mt-2" /></div>
+        <div className="grid gap-4">{[1, 2].map(i => <div key={i} className="h-28 skeleton-shimmer rounded-lg" />)}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -45,28 +53,39 @@ export default function StudentFeedback() {
 
       {feedback.length === 0 ? (
         <Card className="glass-card">
-          <CardContent className="pt-6 text-center text-muted-foreground">
-            <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>You haven't submitted any feedback yet.</p>
+          <CardContent className="pt-8 pb-8 text-center">
+            <MessageSquare className="empty-state-icon" />
+            <p className="text-muted-foreground font-medium">You haven't submitted any feedback yet.</p>
+            <p className="text-sm text-muted-foreground/60 mt-1">After attending a kuppi session, share your thoughts to help organizers improve!</p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4">
-          {feedback.map((fb) => (
-            <Card key={fb.id} className="glass-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="font-display text-base">{fb.kuppi_sessions?.kuppi_notices?.title || "Session"}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-1 mb-2">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star key={s} className={`w-4 h-4 ${s <= fb.rating ? "fill-warning text-warning" : "text-muted"}`} />
-                  ))}
-                </div>
-                {fb.comment && <p className="text-sm text-muted-foreground">{fb.comment}</p>}
-                <p className="text-xs text-muted-foreground mt-2">{new Date(fb.created_at).toLocaleDateString()}</p>
-              </CardContent>
-            </Card>
+          {feedback.map((fb, i) => (
+            <motion.div
+              key={fb.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.06, duration: 0.35 }}
+            >
+              <Card className="glass-card-hover">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="font-display text-base">{fb.kuppi_sessions?.kuppi_notices?.title || "Session"}</CardTitle>
+                    <span className="text-xs text-muted-foreground">{new Date(fb.created_at).toLocaleDateString()}</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-0.5 mb-2">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className={`w-4 h-4 transition-colors ${s <= fb.rating ? "fill-warning text-warning" : "text-muted-foreground/20"}`} />
+                    ))}
+                    <span className="text-xs text-muted-foreground ml-2">{fb.rating}/5</span>
+                  </div>
+                  {fb.comment && <p className="text-sm text-muted-foreground leading-relaxed">{fb.comment}</p>}
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </div>
       )}
