@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Mail, Paperclip, CheckCircle2, Users } from "lucide-react";
+import { Loader2, Mail, Paperclip, CheckCircle2, Users, Send } from "lucide-react";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
+import { Progress } from "@/components/ui/progress";
 
 interface EmailModalProps {
   open: boolean;
@@ -40,6 +42,7 @@ export default function EmailModal({ open, onOpenChange, session }: EmailModalPr
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [sendProgress, setSendProgress] = useState(0);
   const [studyMaterialUrl, setStudyMaterialUrl] = useState("");
 
   const moduleCode = session.kuppi_notices?.modules?.module_code || "N/A";
@@ -58,6 +61,7 @@ export default function EmailModal({ open, onOpenChange, session }: EmailModalPr
     };
     fetchRegistrations();
     setSent(false);
+    setSendProgress(0);
     setStudyMaterialUrl("");
   }, [open, session.notice_id]);
 
@@ -84,20 +88,33 @@ Study Material: ${studyMaterialUrl || "Not provided"}
 
   const handleSend = () => {
     setSending(true);
+    setSendProgress(0);
     const emails = registrations.map((r) => r.student_email);
 
-    // Simulate sending – log to console
     console.log("=== BULK EMAIL SIMULATION ===");
     console.log("Sending email to:", emails);
     console.log("Subject:", subject);
     console.log("Body:", emailBody);
     console.log("=== END ===");
 
+    // Animated progress bar
+    const interval = setInterval(() => {
+      setSendProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          return 100;
+        }
+        return prev + 8;
+      });
+    }, 100);
+
     setTimeout(() => {
+      clearInterval(interval);
+      setSendProgress(100);
       setSending(false);
       setSent(true);
       toast.success(`Emails sent to ${emails.length} student(s) (simulated)`);
-    }, 1200);
+    }, 1400);
   };
 
   return (
@@ -105,81 +122,101 @@ Study Material: ${studyMaterialUrl || "Not provided"}
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display flex items-center gap-2">
-            <Mail className="w-5 h-5" /> Email Registrants
+            <Mail className="w-5 h-5 text-primary" /> Email Registrants
           </DialogTitle>
           <DialogDescription>
-            Send session details to all registered students for this kuppi session.
+            Send session details to all registered students.
           </DialogDescription>
         </DialogHeader>
 
-        {sent ? (
-          <div className="flex flex-col items-center py-8 gap-3">
-            <CheckCircle2 className="w-16 h-16 text-success animate-in zoom-in" />
-            <p className="text-lg font-semibold font-display">Emails Sent!</p>
-            <p className="text-sm text-muted-foreground">{registrations.length} recipient(s)</p>
-          </div>
-        ) : loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Recipients */}
-            <div>
-              <Label className="flex items-center gap-1 mb-2">
-                <Users className="w-4 h-4" /> Recipients ({registrations.length})
-              </Label>
-              {registrations.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No registrations found for this notice.</p>
-              ) : (
-                <div className="flex flex-wrap gap-1">
-                  {registrations.map((r) => (
-                    <Badge key={r.id} variant="secondary" className="text-xs">
-                      {r.student_name}
-                    </Badge>
-                  ))}
+        <AnimatePresence mode="wait">
+          {sent ? (
+            <motion.div
+              key="sent"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center py-10 gap-4"
+            >
+              <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center">
+                <CheckCircle2 className="w-12 h-12 text-success" />
+              </div>
+              <div className="text-center">
+                <p className="text-xl font-bold font-display">Emails Sent! ✉️</p>
+                <p className="text-sm text-muted-foreground mt-1">{registrations.length} recipient(s) notified</p>
+              </div>
+            </motion.div>
+          ) : loading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              {/* Recipients */}
+              <div>
+                <Label className="flex items-center gap-1 mb-2">
+                  <Users className="w-4 h-4 text-primary" /> Recipients ({registrations.length})
+                </Label>
+                {registrations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No registrations found for this notice.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {registrations.map((r) => (
+                      <Badge key={r.id} className="bg-primary/10 text-primary border-primary/20 text-xs">
+                        {r.student_name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Email Preview */}
+              <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Subject</p>
+                  <p className="text-sm font-medium">{subject}</p>
+                </div>
+                <Separator />
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Body</p>
+                  <pre className="text-xs whitespace-pre-wrap font-body text-muted-foreground leading-relaxed">
+                    {emailBody}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Study Material */}
+              <div className="space-y-2">
+                <Label htmlFor="study-material" className="flex items-center gap-1">
+                  <Paperclip className="w-4 h-4 text-muted-foreground" /> Attach Study Material
+                </Label>
+                <Input id="study-material" type="file" onChange={handleFileChange} />
+                {studyMaterialUrl && (
+                  <Badge variant="outline" className="text-xs break-all">
+                    📎 {studyMaterialUrl.split("/").pop()}
+                  </Badge>
+                )}
+              </div>
+
+              {sending && (
+                <div className="space-y-1">
+                  <Progress value={sendProgress} className="h-2" />
+                  <p className="text-xs text-muted-foreground text-center">Sending emails...</p>
                 </div>
               )}
-            </div>
 
-            <Separator />
-
-            {/* Email Preview */}
-            <div>
-              <Label className="mb-1">Subject</Label>
-              <p className="text-sm font-medium border rounded-md px-3 py-2 bg-muted/50">{subject}</p>
-            </div>
-
-            <div>
-              <Label className="mb-1">Email Body Preview</Label>
-              <pre className="text-xs border rounded-md px-3 py-3 bg-muted/50 whitespace-pre-wrap font-body">
-                {emailBody}
-              </pre>
-            </div>
-
-            <Separator />
-
-            {/* Study Material */}
-            <div className="space-y-2">
-              <Label htmlFor="study-material" className="flex items-center gap-1">
-                <Paperclip className="w-4 h-4" /> Attach Study Material (optional)
-              </Label>
-              <Input id="study-material" type="file" onChange={handleFileChange} />
-              {studyMaterialUrl && (
-                <p className="text-xs text-muted-foreground break-all">Mock URL: {studyMaterialUrl}</p>
-              )}
-            </div>
-
-            <Button
-              className="w-full bg-gradient-primary"
-              onClick={handleSend}
-              disabled={sending || registrations.length === 0}
-            >
-              {sending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Send Emails ({registrations.length})
-            </Button>
-          </div>
-        )}
+              <Button
+                className="w-full h-11 bg-gradient-primary font-semibold shadow-md hover:shadow-lg transition-shadow"
+                onClick={handleSend}
+                disabled={sending || registrations.length === 0}
+              >
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {sending ? "Sending..." : `Send to ${registrations.length} Student(s)`}
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </DialogContent>
     </Dialog>
   );
