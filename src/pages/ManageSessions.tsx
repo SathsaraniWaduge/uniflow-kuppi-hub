@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, ExternalLink, Star, Video } from "lucide-react";
+import { Calendar, ExternalLink, Star, Video, Mail } from "lucide-react";
 import { toast } from "sonner";
+import EmailModal from "@/components/EmailModal";
 
 export default function ManageSessions() {
   const { profile } = useAuth();
@@ -18,7 +19,7 @@ export default function ManageSessions() {
   const [uploadSession, setUploadSession] = useState<string | null>(null);
   const [uploadForm, setUploadForm] = useState({ title: "", fileUrl: "" });
   const [feedbacks, setFeedbacks] = useState<Record<string, any[]>>({});
-
+  const [emailSession, setEmailSession] = useState<any>(null);
   useEffect(() => {
     if (!profile) return;
     const fetch = async () => {
@@ -81,7 +82,10 @@ export default function ManageSessions() {
                       <Badge variant="outline">{session.platform}</Badge>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => setEmailSession(session)}>
+                      <Mail className="w-3 h-3 mr-1" /> Email Registrants
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => viewFeedback(session.id)}>
                       <Star className="w-3 h-3 mr-1" /> Feedback
                     </Button>
@@ -140,6 +144,14 @@ export default function ManageSessions() {
             </Card>
           ))}
         </div>
+      )}
+
+      {emailSession && (
+        <EmailModal
+          open={!!emailSession}
+          onOpenChange={(o) => !o && setEmailSession(null)}
+          session={emailSession}
+        />
       )}
     </div>
   );
