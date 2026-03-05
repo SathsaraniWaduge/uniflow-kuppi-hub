@@ -1,13 +1,14 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { BookOpen, LayoutDashboard, Bell, Video, MessageSquare, Settings, LogOut, PlusCircle, Users, FileText, Menu, X } from "lucide-react";
+import { BookOpen, LayoutDashboard, Bell, Video, MessageSquare, Settings, LogOut, PlusCircle, Users, FileText, Menu, X, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
 const studentLinks = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/notices", label: "Notices", icon: Bell },
+  { to: "/sessions", label: "Live Sessions", icon: Radio },
   { to: "/recordings", label: "Recordings", icon: Video },
   { to: "/my-feedback", label: "My Feedback", icon: MessageSquare },
 ];

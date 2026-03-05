@@ -181,9 +181,12 @@ export type Database = {
           created_at: string
           id: string
           meeting_link: string
+          meeting_room_name: string | null
+          meeting_room_url: string | null
           notice_id: string
           organizer_id: string
           platform: string
+          recording_status: string | null
           reminder_sent: boolean | null
           session_date: string
           session_time: string
@@ -193,9 +196,12 @@ export type Database = {
           created_at?: string
           id?: string
           meeting_link: string
+          meeting_room_name?: string | null
+          meeting_room_url?: string | null
           notice_id: string
           organizer_id: string
           platform: string
+          recording_status?: string | null
           reminder_sent?: boolean | null
           session_date: string
           session_time: string
@@ -205,9 +211,12 @@ export type Database = {
           created_at?: string
           id?: string
           meeting_link?: string
+          meeting_room_name?: string | null
+          meeting_room_url?: string | null
           notice_id?: string
           organizer_id?: string
           platform?: string
+          recording_status?: string | null
           reminder_sent?: boolean | null
           session_date?: string
           session_time?: string

@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, ExternalLink, Star, Video, Mail } from "lucide-react";
+import { Calendar, ExternalLink, Star, Video, Mail, Radio, Copy, CheckCircle2, MonitorPlay } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import EmailModal from "@/components/EmailModal";
 
 export default function ManageSessions() {
@@ -20,6 +21,52 @@ export default function ManageSessions() {
   const [uploadForm, setUploadForm] = useState({ title: "", fileUrl: "" });
   const [feedbacks, setFeedbacks] = useState<Record<string, any[]>>({});
   const [emailSession, setEmailSession] = useState<any>(null);
+  const navigate = useNavigate();
+
+  const createMeeting = async (sessionId: string) => {
+    const roomName = `kuppi-${sessionId.slice(0, 8)}`;
+    const mockUrl = `/meeting?room=${roomName}&host=true`;
+    const { error } = await supabase
+      .from("kuppi_sessions")
+      .update({ meeting_room_url: mockUrl, meeting_room_name: roomName } as any)
+      .eq("id", sessionId);
+    if (error) { toast.error("Failed to create meeting"); return; }
+    toast.success("Meeting room created!");
+    // refresh
+    const { data } = await supabase
+      .from("kuppi_sessions")
+      .select("*, kuppi_notices(title, modules(module_code, module_name)), kuppi_recordings(id, title, file_url)")
+      .eq("organizer_id", profile!.id)
+      .order("session_date", { ascending: false });
+    setSessions(data || []);
+  };
+
+  const markRecordingReady = async (sessionId: string) => {
+    const mockRecUrl = `https://mock-storage.com/recordings/kuppi-${sessionId.slice(0, 8)}-${Date.now()}.mp4`;
+    // Insert into kuppi_recordings
+    await supabase.from("kuppi_recordings").insert({
+      session_id: sessionId,
+      title: `Live Recording - ${new Date().toLocaleDateString()}`,
+      file_url: mockRecUrl,
+    });
+    // Update session status
+    await supabase.from("kuppi_sessions").update({ recording_status: "ready" } as any).eq("id", sessionId);
+    toast.success("Recording marked as ready and added to library!");
+    // refresh
+    const { data } = await supabase
+      .from("kuppi_sessions")
+      .select("*, kuppi_notices(title, modules(module_code, module_name)), kuppi_recordings(id, title, file_url)")
+      .eq("organizer_id", profile!.id)
+      .order("session_date", { ascending: false });
+    setSessions(data || []);
+  };
+
+  const copyJoinLink = (roomName: string) => {
+    const link = `${window.location.origin}/meeting?room=${roomName}&host=false`;
+    navigator.clipboard.writeText(link);
+    toast.success("Join link copied to clipboard!");
+  };
+
   useEffect(() => {
     if (!profile) return;
     const fetch = async () => {
@@ -83,8 +130,27 @@ export default function ManageSessions() {
                     </div>
                   </div>
                   <div className="flex gap-2 flex-wrap">
+                    {!(session as any).meeting_room_url ? (
+                      <Button size="sm" className="bg-gradient-accent text-accent-foreground font-semibold" onClick={() => createMeeting(session.id)}>
+                        <Radio className="w-3 h-3 mr-1" /> Create Meeting
+                      </Button>
+                    ) : (
+                      <>
+                        <Button size="sm" className="bg-gradient-primary text-primary-foreground" onClick={() => navigate((session as any).meeting_room_url)}>
+                          <MonitorPlay className="w-3 h-3 mr-1" /> Start Meeting
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => copyJoinLink((session as any).meeting_room_name)}>
+                          <Copy className="w-3 h-3 mr-1" /> Copy Link
+                        </Button>
+                        {(session as any).recording_status !== "ready" && (
+                          <Button size="sm" variant="outline" onClick={() => markRecordingReady(session.id)}>
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> Mark Recording Ready
+                          </Button>
+                        )}
+                      </>
+                    )}
                     <Button size="sm" variant="outline" onClick={() => setEmailSession(session)}>
-                      <Mail className="w-3 h-3 mr-1" /> Email Registrants
+                      <Mail className="w-3 h-3 mr-1" /> Email
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => viewFeedback(session.id)}>
                       <Star className="w-3 h-3 mr-1" /> Feedback
