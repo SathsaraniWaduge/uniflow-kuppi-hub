@@ -10,12 +10,14 @@ import Dashboard from "./pages/Dashboard";
 import StudentNotices from "./pages/StudentNotices";
 import StudentRecordings from "./pages/StudentRecordings";
 import StudentFeedback from "./pages/StudentFeedback";
+import StudentSessions from "./pages/StudentSessions";
 import CreateNotice from "./pages/CreateNotice";
 import ManageNotices from "./pages/ManageNotices";
 import ManageSessions from "./pages/ManageSessions";
 import ManageRecordings from "./pages/ManageRecordings";
 import ManageModules from "./pages/ManageModules";
 import ManageStudents from "./pages/ManageStudents";
+import MeetingRoom from "./pages/MeetingRoom";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +36,7 @@ const App = () => (
             {/* Student routes */}
             <Route path="/notices" element={<ProtectedRoute role="student"><StudentNotices /></ProtectedRoute>} />
             <Route path="/recordings" element={<ProtectedRoute role="student"><StudentRecordings /></ProtectedRoute>} />
+            <Route path="/sessions" element={<ProtectedRoute role="student"><StudentSessions /></ProtectedRoute>} />
             <Route path="/my-feedback" element={<ProtectedRoute role="student"><StudentFeedback /></ProtectedRoute>} />
             {/* Organizer routes */}
             <Route path="/create-notice" element={<ProtectedRoute role="organizer"><CreateNotice /></ProtectedRoute>} />
@@ -42,6 +45,7 @@ const App = () => (
             <Route path="/manage-recordings" element={<ProtectedRoute role="organizer"><ManageRecordings /></ProtectedRoute>} />
             <Route path="/manage-modules" element={<ProtectedRoute role="organizer"><ManageModules /></ProtectedRoute>} />
             <Route path="/manage-students" element={<ProtectedRoute role="organizer"><ManageStudents /></ProtectedRoute>} />
+            <Route path="/meeting" element={<ProtectedRoute><MeetingRoom /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
