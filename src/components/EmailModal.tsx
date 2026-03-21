@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { query } from "@/mocks/data";
+import type { KuppiRegistration } from "@/mocks/data";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -50,16 +51,10 @@ export default function EmailModal({ open, onOpenChange, session }: EmailModalPr
 
   useEffect(() => {
     if (!open) return;
-    const fetchRegistrations = async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("kuppi_registrations")
-        .select("id, student_name, student_email")
-        .eq("notice_id", session.notice_id);
-      setRegistrations(data || []);
-      setLoading(false);
-    };
-    fetchRegistrations();
+    setLoading(true);
+    const regs = query<KuppiRegistration>("kuppi_registrations", (r) => r.notice_id === session.notice_id);
+    setRegistrations(regs.map((r) => ({ id: r.id, student_name: r.student_name, student_email: r.student_email })));
+    setLoading(false);
     setSent(false);
     setSendProgress(0);
     setStudyMaterialUrl("");
@@ -97,13 +92,9 @@ Study Material: ${studyMaterialUrl || "Not provided"}
     console.log("Body:", emailBody);
     console.log("=== END ===");
 
-    // Animated progress bar
     const interval = setInterval(() => {
-      setSendProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
+      setSendProgress((prev) => {
+        if (prev >= 100) { clearInterval(interval); return 100; }
         return prev + 8;
       });
     }, 100);
@@ -124,19 +115,12 @@ Study Material: ${studyMaterialUrl || "Not provided"}
           <DialogTitle className="font-display flex items-center gap-2">
             <Mail className="w-5 h-5 text-primary" /> Email Registrants
           </DialogTitle>
-          <DialogDescription>
-            Send session details to all registered students.
-          </DialogDescription>
+          <DialogDescription>Send session details to all registered students.</DialogDescription>
         </DialogHeader>
 
         <AnimatePresence mode="wait">
           {sent ? (
-            <motion.div
-              key="sent"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex flex-col items-center py-10 gap-4"
-            >
+            <motion.div key="sent" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center py-10 gap-4">
               <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center">
                 <CheckCircle2 className="w-12 h-12 text-success" />
               </div>
@@ -151,7 +135,6 @@ Study Material: ${studyMaterialUrl || "Not provided"}
             </div>
           ) : (
             <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-              {/* Recipients */}
               <div>
                 <Label className="flex items-center gap-1 mb-2">
                   <Users className="w-4 h-4 text-primary" /> Recipients ({registrations.length})
@@ -161,9 +144,7 @@ Study Material: ${studyMaterialUrl || "Not provided"}
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {registrations.map((r) => (
-                      <Badge key={r.id} className="bg-primary/10 text-primary border-primary/20 text-xs">
-                        {r.student_name}
-                      </Badge>
+                      <Badge key={r.id} className="bg-primary/10 text-primary border-primary/20 text-xs">{r.student_name}</Badge>
                     ))}
                   </div>
                 )}
@@ -171,7 +152,6 @@ Study Material: ${studyMaterialUrl || "Not provided"}
 
               <Separator />
 
-              {/* Email Preview */}
               <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-3">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Subject</p>
@@ -180,22 +160,17 @@ Study Material: ${studyMaterialUrl || "Not provided"}
                 <Separator />
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Body</p>
-                  <pre className="text-xs whitespace-pre-wrap font-body text-muted-foreground leading-relaxed">
-                    {emailBody}
-                  </pre>
+                  <pre className="text-xs whitespace-pre-wrap font-body text-muted-foreground leading-relaxed">{emailBody}</pre>
                 </div>
               </div>
 
-              {/* Study Material */}
               <div className="space-y-2">
                 <Label htmlFor="study-material" className="flex items-center gap-1">
                   <Paperclip className="w-4 h-4 text-muted-foreground" /> Attach Study Material
                 </Label>
                 <Input id="study-material" type="file" onChange={handleFileChange} />
                 {studyMaterialUrl && (
-                  <Badge variant="outline" className="text-xs break-all">
-                    📎 {studyMaterialUrl.split("/").pop()}
-                  </Badge>
+                  <Badge variant="outline" className="text-xs break-all">📎 {studyMaterialUrl.split("/").pop()}</Badge>
                 )}
               </div>
 
@@ -206,11 +181,7 @@ Study Material: ${studyMaterialUrl || "Not provided"}
                 </div>
               )}
 
-              <Button
-                className="w-full h-11 bg-gradient-primary font-semibold shadow-md hover:shadow-lg transition-shadow"
-                onClick={handleSend}
-                disabled={sending || registrations.length === 0}
-              >
+              <Button className="w-full h-11 bg-gradient-primary font-semibold shadow-md hover:shadow-lg transition-shadow" onClick={handleSend} disabled={sending || registrations.length === 0}>
                 {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 {sending ? "Sending..." : `Send to ${registrations.length} Student(s)`}
               </Button>

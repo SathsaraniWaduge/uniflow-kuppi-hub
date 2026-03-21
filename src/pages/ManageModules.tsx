@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getAll, insert, remove } from "@/mocks/data";
+import type { Module } from "@/mocks/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,39 +10,37 @@ import { Trash2, PlusCircle, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ManageModules() {
-  const [modules, setModules] = useState<any[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
   const [form, setForm] = useState({ moduleCode: "", moduleName: "", year: "1", semester: "1" });
   const [loading, setLoading] = useState(false);
 
-  const fetchModules = async () => {
-    const { data } = await supabase.from("modules").select("*").order("year").order("semester");
-    setModules(data || []);
+  const fetchModules = () => {
+    const all = getAll<Module>("modules").sort((a, b) => a.year - b.year || a.semester - b.semester);
+    setModules(all);
   };
 
   useEffect(() => { fetchModules(); }, []);
 
-  const addModule = async (e: React.FormEvent) => {
+  const addModule = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.from("modules").insert({
+    insert<Module>("modules", {
       module_code: form.moduleCode,
       module_name: form.moduleName,
       year: parseInt(form.year),
       semester: parseInt(form.semester),
+      created_at: new Date().toISOString(),
     });
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Module added!");
-      setForm({ moduleCode: "", moduleName: "", year: "1", semester: "1" });
-      fetchModules();
-    }
+    toast.success("Module added!");
+    setForm({ moduleCode: "", moduleName: "", year: "1", semester: "1" });
+    fetchModules();
     setLoading(false);
   };
 
-  const deleteModule = async (id: string) => {
-    const { error } = await supabase.from("modules").delete().eq("id", id);
-    if (error) toast.error("Failed to delete");
-    else { toast.success("Deleted"); fetchModules(); }
+  const deleteModule = (id: string) => {
+    remove("modules", id);
+    toast.success("Deleted");
+    fetchModules();
   };
 
   return (
@@ -55,10 +54,10 @@ export default function ManageModules() {
         <CardHeader><CardTitle className="font-display flex items-center gap-2"><PlusCircle className="w-5 h-5" /> Add Module</CardTitle></CardHeader>
         <CardContent>
           <form onSubmit={addModule} className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
-            <div><Label>Code</Label><Input value={form.moduleCode} onChange={(e) => setForm(p => ({ ...p, moduleCode: e.target.value }))} placeholder="IT2030" required /></div>
-            <div><Label>Name</Label><Input value={form.moduleName} onChange={(e) => setForm(p => ({ ...p, moduleName: e.target.value }))} placeholder="Data Structures" required /></div>
-            <div><Label>Year</Label><Input type="number" min="1" max="4" value={form.year} onChange={(e) => setForm(p => ({ ...p, year: e.target.value }))} required /></div>
-            <div><Label>Semester</Label><Input type="number" min="1" max="2" value={form.semester} onChange={(e) => setForm(p => ({ ...p, semester: e.target.value }))} required /></div>
+            <div><Label>Code</Label><Input value={form.moduleCode} onChange={(e) => setForm((p) => ({ ...p, moduleCode: e.target.value }))} placeholder="IT2030" required /></div>
+            <div><Label>Name</Label><Input value={form.moduleName} onChange={(e) => setForm((p) => ({ ...p, moduleName: e.target.value }))} placeholder="Data Structures" required /></div>
+            <div><Label>Year</Label><Input type="number" min="1" max="4" value={form.year} onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))} required /></div>
+            <div><Label>Semester</Label><Input type="number" min="1" max="2" value={form.semester} onChange={(e) => setForm((p) => ({ ...p, semester: e.target.value }))} required /></div>
             <Button type="submit" className="bg-gradient-primary" disabled={loading}>Add</Button>
           </form>
         </CardContent>

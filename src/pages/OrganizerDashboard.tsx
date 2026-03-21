@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { count } from "@/mocks/data";
+import type { KuppiNotice, KuppiSession } from "@/mocks/data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Bell, Video, Users, Calendar, ArrowRight, PlusCircle, BookOpen, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -12,13 +13,10 @@ export default function OrganizerDashboard() {
 
   useEffect(() => {
     if (!profile) return;
-    const fetchStats = async () => {
-      const { count: n } = await supabase.from("kuppi_notices").select("*", { count: "exact", head: true }).eq("created_by", profile.id);
-      const { count: s } = await supabase.from("kuppi_sessions").select("*", { count: "exact", head: true }).eq("organizer_id", profile.id);
-      const { count: rec } = await supabase.from("kuppi_recordings").select("*", { count: "exact", head: true });
-      setStats({ notices: n || 0, sessions: s || 0, registrations: 0, recordings: rec || 0 });
-    };
-    fetchStats();
+    const n = count("kuppi_notices", (x: KuppiNotice) => x.created_by === profile.id);
+    const s = count("kuppi_sessions", (x: KuppiSession) => x.organizer_id === profile.id);
+    const rec = count("kuppi_recordings");
+    setStats({ notices: n, sessions: s, registrations: 0, recordings: rec });
   }, [profile]);
 
   const cards = [

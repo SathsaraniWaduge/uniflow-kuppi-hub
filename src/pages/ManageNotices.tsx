@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { query, getModuleById, remove, insert } from "@/mocks/data";
+import type { KuppiNotice, KuppiRegistration, KuppiSession } from "@/mocks/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar, Users, Trash2, Video as VideoIcon } from "lucide-react";
+import { Calendar, Users, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ManageNotices() {
@@ -16,29 +17,32 @@ export default function ManageNotices() {
   const [loading, setLoading] = useState(true);
   const [scheduleNotice, setScheduleNotice] = useState<string | null>(null);
   const [sessionForm, setSessionForm] = useState({ date: "", time: "", platform: "Zoom", meetingLink: "", coveredParts: "" });
-  const [registrations, setRegistrations] = useState<Record<string, any[]>>({});
+  const [registrations, setRegistrations] = useState<Record<string, KuppiRegistration[]>>({});
 
-  const fetchNotices = async () => {
+  const fetchNotices = () => {
     if (!profile) return;
-    const { data } = await supabase
-      .from("kuppi_notices")
-      .select("*, modules(module_code, module_name)")
-      .eq("created_by", profile.id)
-      .order("created_at", { ascending: false });
-    setNotices(data || []);
+    const raw = query<KuppiNotice>("kuppi_notices", (n) => n.created_by === profile.id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    const withModules = raw.map((n) => {
+      const mod = getModuleById(n.module_id);
+      return { ...n, modules: mod ? { module_code: mod.module_code, module_name: mod.module_name } : null };
+    });
+
+    setNotices(withModules);
     setLoading(false);
   };
 
   useEffect(() => { fetchNotices(); }, [profile]);
 
-  const viewRegistrations = async (noticeId: string) => {
-    const { data } = await supabase.from("kuppi_registrations").select("*").eq("notice_id", noticeId);
-    setRegistrations((prev) => ({ ...prev, [noticeId]: data || [] }));
+  const viewRegistrations = (noticeId: string) => {
+    const regs = query<KuppiRegistration>("kuppi_registrations", (r) => r.notice_id === noticeId);
+    setRegistrations((prev) => ({ ...prev, [noticeId]: regs }));
   };
 
-  const scheduleSession = async () => {
+  const scheduleSession = () => {
     if (!profile || !scheduleNotice) return;
-    const { error } = await supabase.from("kuppi_sessions").insert({
+    insert<KuppiSession>("kuppi_sessions", {
       notice_id: scheduleNotice,
       session_date: sessionForm.date,
       session_time: sessionForm.time,
@@ -46,22 +50,21 @@ export default function ManageNotices() {
       meeting_link: sessionForm.meetingLink,
       covered_parts: sessionForm.coveredParts || null,
       organizer_id: profile.id,
+      reminder_sent: false,
+      meeting_room_url: null,
+      meeting_room_name: null,
+      recording_status: "none",
+      created_at: new Date().toISOString(),
     });
-    if (error) toast.error("Failed to schedule session");
-    else {
-      toast.success("Session scheduled!");
-      setScheduleNotice(null);
-      setSessionForm({ date: "", time: "", platform: "Zoom", meetingLink: "", coveredParts: "" });
-    }
+    toast.success("Session scheduled!");
+    setScheduleNotice(null);
+    setSessionForm({ date: "", time: "", platform: "Zoom", meetingLink: "", coveredParts: "" });
   };
 
-  const deleteNotice = async (id: string) => {
-    const { error } = await supabase.from("kuppi_notices").delete().eq("id", id);
-    if (error) toast.error("Failed to delete");
-    else {
-      toast.success("Notice deleted");
-      fetchNotices();
-    }
+  const deleteNotice = (id: string) => {
+    remove("kuppi_notices", id);
+    toast.success("Notice deleted");
+    fetchNotices();
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Loading...</p></div>;
@@ -100,11 +103,11 @@ export default function ManageNotices() {
                       <DialogContent>
                         <DialogHeader><DialogTitle className="font-display">Schedule Session</DialogTitle></DialogHeader>
                         <div className="space-y-3">
-                          <div><Label>Date</Label><Input type="date" value={sessionForm.date} onChange={(e) => setSessionForm(p => ({ ...p, date: e.target.value }))} /></div>
-                          <div><Label>Time</Label><Input type="time" value={sessionForm.time} onChange={(e) => setSessionForm(p => ({ ...p, time: e.target.value }))} /></div>
-                          <div><Label>Platform</Label><Input value={sessionForm.platform} onChange={(e) => setSessionForm(p => ({ ...p, platform: e.target.value }))} /></div>
-                          <div><Label>Meeting Link</Label><Input value={sessionForm.meetingLink} onChange={(e) => setSessionForm(p => ({ ...p, meetingLink: e.target.value }))} /></div>
-                          <div><Label>Covered Parts</Label><Input value={sessionForm.coveredParts} onChange={(e) => setSessionForm(p => ({ ...p, coveredParts: e.target.value }))} /></div>
+                          <div><Label>Date</Label><Input type="date" value={sessionForm.date} onChange={(e) => setSessionForm((p) => ({ ...p, date: e.target.value }))} /></div>
+                          <div><Label>Time</Label><Input type="time" value={sessionForm.time} onChange={(e) => setSessionForm((p) => ({ ...p, time: e.target.value }))} /></div>
+                          <div><Label>Platform</Label><Input value={sessionForm.platform} onChange={(e) => setSessionForm((p) => ({ ...p, platform: e.target.value }))} /></div>
+                          <div><Label>Meeting Link</Label><Input value={sessionForm.meetingLink} onChange={(e) => setSessionForm((p) => ({ ...p, meetingLink: e.target.value }))} /></div>
+                          <div><Label>Covered Parts</Label><Input value={sessionForm.coveredParts} onChange={(e) => setSessionForm((p) => ({ ...p, coveredParts: e.target.value }))} /></div>
                           <Button className="w-full bg-gradient-primary" onClick={scheduleSession}>Schedule Session</Button>
                         </div>
                       </DialogContent>

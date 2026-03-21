@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { query, getById, update, insert } from "@/mocks/data";
+import type { KuppiSession, KuppiNotice, KuppiRecording, KuppiFeedback, Module } from "@/mocks/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Calendar, ExternalLink, Star, Video, Mail, Radio, Copy, CheckCircle2, MonitorPlay } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -23,42 +23,50 @@ export default function ManageSessions() {
   const [emailSession, setEmailSession] = useState<any>(null);
   const navigate = useNavigate();
 
-  const createMeeting = async (sessionId: string) => {
-    const roomName = `kuppi-${sessionId.slice(0, 8)}`;
-    const mockUrl = `/meeting?room=${roomName}&host=true`;
-    const { error } = await supabase
-      .from("kuppi_sessions")
-      .update({ meeting_room_url: mockUrl, meeting_room_name: roomName } as any)
-      .eq("id", sessionId);
-    if (error) { toast.error("Failed to create meeting"); return; }
-    toast.success("Meeting room created!");
-    // refresh
-    const { data } = await supabase
-      .from("kuppi_sessions")
-      .select("*, kuppi_notices(title, modules(module_code, module_name)), kuppi_recordings(id, title, file_url)")
-      .eq("organizer_id", profile!.id)
-      .order("session_date", { ascending: false });
-    setSessions(data || []);
+  const fetchSessions = () => {
+    if (!profile) return;
+    const raw = query<KuppiSession>("kuppi_sessions", (s) => s.organizer_id === profile.id)
+      .sort((a, b) => new Date(b.session_date).getTime() - new Date(a.session_date).getTime());
+
+    const withRelations = raw.map((s) => {
+      const notice = getById<KuppiNotice>("kuppi_notices", s.notice_id);
+      const mod = notice ? getById<Module>("modules", notice.module_id) : null;
+      const recs = query<KuppiRecording>("kuppi_recordings", (r) => r.session_id === s.id);
+      return {
+        ...s,
+        kuppi_notices: notice ? {
+          title: notice.title,
+          modules: mod ? { module_code: mod.module_code, module_name: mod.module_name } : null,
+        } : null,
+        kuppi_recordings: recs,
+      };
+    });
+
+    setSessions(withRelations);
+    setLoading(false);
   };
 
-  const markRecordingReady = async (sessionId: string) => {
+  useEffect(() => { fetchSessions(); }, [profile]);
+
+  const createMeeting = (sessionId: string) => {
+    const roomName = `kuppi-${sessionId.slice(0, 8)}`;
+    const mockUrl = `/meeting?room=${roomName}&host=true`;
+    update<KuppiSession>("kuppi_sessions", sessionId, { meeting_room_url: mockUrl, meeting_room_name: roomName } as any);
+    toast.success("Meeting room created!");
+    fetchSessions();
+  };
+
+  const markRecordingReady = (sessionId: string) => {
     const mockRecUrl = `https://mock-storage.com/recordings/kuppi-${sessionId.slice(0, 8)}-${Date.now()}.mp4`;
-    // Insert into kuppi_recordings
-    await supabase.from("kuppi_recordings").insert({
+    insert<KuppiRecording>("kuppi_recordings", {
       session_id: sessionId,
       title: `Live Recording - ${new Date().toLocaleDateString()}`,
       file_url: mockRecUrl,
+      uploaded_at: new Date().toISOString(),
     });
-    // Update session status
-    await supabase.from("kuppi_sessions").update({ recording_status: "ready" } as any).eq("id", sessionId);
+    update<KuppiSession>("kuppi_sessions", sessionId, { recording_status: "ready" } as any);
     toast.success("Recording marked as ready and added to library!");
-    // refresh
-    const { data } = await supabase
-      .from("kuppi_sessions")
-      .select("*, kuppi_notices(title, modules(module_code, module_name)), kuppi_recordings(id, title, file_url)")
-      .eq("organizer_id", profile!.id)
-      .order("session_date", { ascending: false });
-    setSessions(data || []);
+    fetchSessions();
   };
 
   const copyJoinLink = (roomName: string) => {
@@ -67,38 +75,26 @@ export default function ManageSessions() {
     toast.success("Join link copied to clipboard!");
   };
 
-  useEffect(() => {
-    if (!profile) return;
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("kuppi_sessions")
-        .select("*, kuppi_notices(title, modules(module_code, module_name)), kuppi_recordings(id, title, file_url)")
-        .eq("organizer_id", profile.id)
-        .order("session_date", { ascending: false });
-      setSessions(data || []);
-      setLoading(false);
-    };
-    fetch();
-  }, [profile]);
-
-  const uploadRecording = async () => {
+  const uploadRecording = () => {
     if (!uploadSession) return;
-    const { error } = await supabase.from("kuppi_recordings").insert({
+    insert<KuppiRecording>("kuppi_recordings", {
       session_id: uploadSession,
       title: uploadForm.title,
       file_url: uploadForm.fileUrl,
+      uploaded_at: new Date().toISOString(),
     });
-    if (error) toast.error("Upload failed");
-    else {
-      toast.success("Recording added!");
-      setUploadSession(null);
-      setUploadForm({ title: "", fileUrl: "" });
-    }
+    toast.success("Recording added!");
+    setUploadSession(null);
+    setUploadForm({ title: "", fileUrl: "" });
+    fetchSessions();
   };
 
-  const viewFeedback = async (sessionId: string) => {
-    const { data } = await supabase.from("kuppi_feedback").select("*, profiles(name)").eq("session_id", sessionId);
-    setFeedbacks(prev => ({ ...prev, [sessionId]: data || [] }));
+  const viewFeedback = (sessionId: string) => {
+    const fbs = query<KuppiFeedback>("kuppi_feedback", (f) => f.session_id === sessionId).map((fb) => {
+      const user = getById<any>("users", fb.student_id);
+      return { ...fb, profiles: user ? { name: user.name } : null };
+    });
+    setFeedbacks((prev) => ({ ...prev, [sessionId]: fbs }));
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Loading...</p></div>;
@@ -130,19 +126,19 @@ export default function ManageSessions() {
                     </div>
                   </div>
                   <div className="flex gap-2 flex-wrap">
-                    {!(session as any).meeting_room_url ? (
+                    {!session.meeting_room_url ? (
                       <Button size="sm" className="bg-gradient-accent text-accent-foreground font-semibold" onClick={() => createMeeting(session.id)}>
                         <Radio className="w-3 h-3 mr-1" /> Create Meeting
                       </Button>
                     ) : (
                       <>
-                        <Button size="sm" className="bg-gradient-primary text-primary-foreground" onClick={() => navigate((session as any).meeting_room_url)}>
+                        <Button size="sm" className="bg-gradient-primary text-primary-foreground" onClick={() => navigate(session.meeting_room_url)}>
                           <MonitorPlay className="w-3 h-3 mr-1" /> Start Meeting
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => copyJoinLink((session as any).meeting_room_name)}>
+                        <Button size="sm" variant="outline" onClick={() => copyJoinLink(session.meeting_room_name)}>
                           <Copy className="w-3 h-3 mr-1" /> Copy Link
                         </Button>
-                        {(session as any).recording_status !== "ready" && (
+                        {session.recording_status !== "ready" && (
                           <Button size="sm" variant="outline" onClick={() => markRecordingReady(session.id)}>
                             <CheckCircle2 className="w-3 h-3 mr-1" /> Mark Recording Ready
                           </Button>
@@ -164,8 +160,8 @@ export default function ManageSessions() {
                       <DialogContent>
                         <DialogHeader><DialogTitle className="font-display">Upload Recording</DialogTitle></DialogHeader>
                         <div className="space-y-3">
-                          <div><Label>Title</Label><Input value={uploadForm.title} onChange={(e) => setUploadForm(p => ({ ...p, title: e.target.value }))} /></div>
-                          <div><Label>Video URL</Label><Input value={uploadForm.fileUrl} onChange={(e) => setUploadForm(p => ({ ...p, fileUrl: e.target.value }))} placeholder="https://drive.google.com/..." /></div>
+                          <div><Label>Title</Label><Input value={uploadForm.title} onChange={(e) => setUploadForm((p) => ({ ...p, title: e.target.value }))} /></div>
+                          <div><Label>Video URL</Label><Input value={uploadForm.fileUrl} onChange={(e) => setUploadForm((p) => ({ ...p, fileUrl: e.target.value }))} placeholder="https://drive.google.com/..." /></div>
                           <Button className="w-full bg-gradient-primary" onClick={uploadRecording}>Save Recording</Button>
                         </div>
                       </DialogContent>
@@ -199,7 +195,7 @@ export default function ManageSessions() {
                       <div key={fb.id} className="text-sm border-l-2 border-primary/20 pl-3 mb-2">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{fb.profiles?.name}</span>
-                          <div className="flex">{[1,2,3,4,5].map(s => <Star key={s} className={`w-3 h-3 ${s <= fb.rating ? "fill-warning text-warning" : "text-muted"}`} />)}</div>
+                          <div className="flex">{[1, 2, 3, 4, 5].map((s) => <Star key={s} className={`w-3 h-3 ${s <= fb.rating ? "fill-warning text-warning" : "text-muted"}`} />)}</div>
                         </div>
                         {fb.comment && <p className="text-muted-foreground">{fb.comment}</p>}
                       </div>
