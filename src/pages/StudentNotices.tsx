@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { query, getModuleById } from "@/mocks/data";
+import type { StudentModule, KuppiNotice, KuppiRegistration } from "@/mocks/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ExternalLink, Calendar, BookOpen, UserPlus, Search, CheckCircle2 } from "lucide-react";
-import { toast } from "sonner";
 import { motion } from "framer-motion";
 import RegisterModal from "@/components/RegisterModal";
 
@@ -26,37 +26,41 @@ export default function StudentNotices() {
   const [searchQuery, setSearchQuery] = useState("");
   const [registeredNotices, setRegisteredNotices] = useState<Set<string>>(new Set());
 
+  const refreshRegistered = () => {
+    if (!profile) return;
+    const regs = query<KuppiRegistration>("kuppi_registrations", (r) => r.student_id === profile.id);
+    setRegisteredNotices(new Set(regs.map((r) => r.notice_id)));
+  };
+
   useEffect(() => {
     if (!profile) return;
-    const fetch = async () => {
-      const { data: mods } = await supabase.from("student_modules").select("module_id").eq("student_id", profile.id);
-      const moduleIds = mods?.map(m => m.module_id) || [];
-      if (moduleIds.length === 0) { setLoading(false); return; }
+    const mods = query<StudentModule>("student_modules", (m) => m.student_id === profile.id);
+    const moduleIds = mods.map((m) => m.module_id);
+    if (moduleIds.length === 0) { setLoading(false); return; }
 
-      const { data, error } = await supabase
-        .from("kuppi_notices")
-        .select("id, title, description, google_form_url, created_at, modules(module_code, module_name, year, semester)")
-        .in("module_id", moduleIds)
-        .order("created_at", { ascending: false });
+    const rawNotices = query<KuppiNotice>("kuppi_notices", (n) => moduleIds.includes(n.module_id))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      if (error) toast.error("Failed to load notices");
-      setNotices((data as any) || []);
+    const withModules: NoticeWithModule[] = rawNotices.map((n) => {
+      const mod = getModuleById(n.module_id);
+      return {
+        id: n.id,
+        title: n.title,
+        description: n.description,
+        google_form_url: n.google_form_url,
+        created_at: n.created_at,
+        modules: mod ? { module_code: mod.module_code, module_name: mod.module_name, year: mod.year, semester: mod.semester } : null,
+      };
+    });
 
-      // Check which notices the student is already registered for
-      const { data: regs } = await supabase
-        .from("kuppi_registrations")
-        .select("notice_id")
-        .eq("student_id", profile.id);
-      setRegisteredNotices(new Set(regs?.map(r => r.notice_id) || []));
-
-      setLoading(false);
-    };
-    fetch();
+    setNotices(withModules);
+    refreshRegistered();
+    setLoading(false);
   }, [profile]);
 
   const [selectedNotice, setSelectedNotice] = useState<NoticeWithModule | null>(null);
 
-  const filteredNotices = notices.filter(n => {
+  const filteredNotices = notices.filter((n) => {
     const q = searchQuery.toLowerCase();
     return !q || n.title.toLowerCase().includes(q) || n.modules?.module_code.toLowerCase().includes(q) || n.modules?.module_name.toLowerCase().includes(q);
   });
@@ -69,7 +73,7 @@ export default function StudentNotices() {
           <div className="h-4 w-72 skeleton-shimmer rounded mt-2" />
         </div>
         <div className="grid gap-4">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3].map((i) => (
             <div key={i} className="h-40 skeleton-shimmer rounded-lg" />
           ))}
         </div>
@@ -86,12 +90,7 @@ export default function StudentNotices() {
         </div>
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search notices..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9 h-10"
-          />
+          <Input placeholder="Search notices..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-10" />
         </div>
       </div>
 
@@ -110,12 +109,7 @@ export default function StudentNotices() {
           {filteredNotices.map((notice, i) => {
             const isRegistered = registeredNotices.has(notice.id);
             return (
-              <motion.div
-                key={notice.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05, duration: 0.35 }}
-              >
+              <motion.div key={notice.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05, duration: 0.35 }}>
                 <Card className="glass-card-hover">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-3">
@@ -125,9 +119,7 @@ export default function StudentNotices() {
                           <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/15">{notice.modules?.module_code}</Badge>
                           <Badge variant="outline" className="text-muted-foreground">{notice.modules?.module_name}</Badge>
                           {notice.modules && (
-                            <span className="text-xs text-muted-foreground/60">
-                              Year {notice.modules.year} · Sem {notice.modules.semester}
-                            </span>
+                            <span className="text-xs text-muted-foreground/60">Year {notice.modules.year} · Sem {notice.modules.semester}</span>
                           )}
                         </div>
                       </div>
@@ -168,14 +160,7 @@ export default function StudentNotices() {
           open={!!selectedNotice}
           onOpenChange={(o) => {
             if (!o) {
-              // Refresh registered status
-              if (profile) {
-                supabase
-                  .from("kuppi_registrations")
-                  .select("notice_id")
-                  .eq("student_id", profile.id)
-                  .then(({ data }) => setRegisteredNotices(new Set(data?.map(r => r.notice_id) || [])));
-              }
+              refreshRegistered();
               setSelectedNotice(null);
             }
           }}

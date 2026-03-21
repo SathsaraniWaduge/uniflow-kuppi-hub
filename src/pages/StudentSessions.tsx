@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { query, getById } from "@/mocks/data";
+import type { KuppiRegistration, KuppiSession, KuppiNotice, Module } from "@/mocks/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,33 +32,41 @@ export default function StudentSessions() {
 
   useEffect(() => {
     if (!profile) return;
-    const fetchSessions = async () => {
-      // Get student's registered notice ids
-      const { data: regs } = await supabase
-        .from("kuppi_registrations")
-        .select("notice_id")
-        .eq("student_id", profile.id);
+    const regs = query<KuppiRegistration>("kuppi_registrations", (r) => r.student_id === profile.id);
+    const noticeIds = regs.map((r) => r.notice_id);
+    if (noticeIds.length === 0) { setLoading(false); return; }
 
-      const noticeIds = regs?.map((r) => r.notice_id) || [];
-      if (noticeIds.length === 0) { setLoading(false); return; }
+    const raw = query<KuppiSession>("kuppi_sessions", (s) => noticeIds.includes(s.notice_id))
+      .sort((a, b) => new Date(a.session_date).getTime() - new Date(b.session_date).getTime());
 
-      const { data } = await supabase
-        .from("kuppi_sessions")
-        .select("id, session_date, session_time, platform, meeting_link, meeting_room_url, meeting_room_name, covered_parts, kuppi_notices(title, modules(module_code, module_name))")
-        .in("notice_id", noticeIds)
-        .order("session_date", { ascending: true });
+    const items: SessionItem[] = raw.map((s) => {
+      const notice = getById<KuppiNotice>("kuppi_notices", s.notice_id);
+      const mod = notice ? getById<Module>("modules", notice.module_id) : null;
+      return {
+        id: s.id,
+        session_date: s.session_date,
+        session_time: s.session_time,
+        platform: s.platform,
+        meeting_link: s.meeting_link,
+        meeting_room_url: s.meeting_room_url,
+        meeting_room_name: s.meeting_room_name,
+        covered_parts: s.covered_parts,
+        kuppi_notices: notice ? {
+          title: notice.title,
+          modules: mod ? { module_code: mod.module_code, module_name: mod.module_name } : null,
+        } : null,
+      };
+    });
 
-      setSessions((data as any) || []);
-      setLoading(false);
-    };
-    fetchSessions();
+    setSessions(items);
+    setLoading(false);
   }, [profile]);
 
   const isJoinable = (date: string, time: string) => {
     const now = new Date();
     const sessionStart = new Date(`${date}T${time}`);
     const diff = (sessionStart.getTime() - now.getTime()) / (1000 * 60);
-    return diff <= 15 && diff >= -120; // 15 min before to 2 hours after
+    return diff <= 15 && diff >= -120;
   };
 
   const isPast = (date: string) => new Date(date) < new Date();
@@ -66,7 +75,7 @@ export default function StudentSessions() {
     return (
       <div className="space-y-6">
         <div><div className="h-8 w-48 skeleton-shimmer rounded-lg" /><div className="h-4 w-72 skeleton-shimmer rounded mt-2" /></div>
-        <div className="grid gap-4">{[1, 2, 3].map(i => <div key={i} className="h-36 skeleton-shimmer rounded-lg" />)}</div>
+        <div className="grid gap-4">{[1, 2, 3].map((i) => <div key={i} className="h-36 skeleton-shimmer rounded-lg" />)}</div>
       </div>
     );
   }
@@ -94,30 +103,16 @@ export default function StudentSessions() {
             const hasRoom = !!session.meeting_room_url;
 
             return (
-              <motion.div
-                key={session.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05, duration: 0.35 }}
-              >
+              <motion.div key={session.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05, duration: 0.35 }}>
                 <Card className="glass-card-hover">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-3 flex-wrap">
                       <div>
-                        <CardTitle className="font-display text-lg">
-                          {session.kuppi_notices?.title}
-                        </CardTitle>
+                        <CardTitle className="font-display text-lg">{session.kuppi_notices?.title}</CardTitle>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <Badge className="bg-primary/10 text-primary border-primary/20">
-                            {session.kuppi_notices?.modules?.module_code}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {new Date(session.session_date).toLocaleDateString()}
-                          </span>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {session.session_time}
-                          </span>
+                          <Badge className="bg-primary/10 text-primary border-primary/20">{session.kuppi_notices?.modules?.module_code}</Badge>
+                          <span className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(session.session_date).toLocaleDateString()}</span>
+                          <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> {session.session_time}</span>
                           <Badge variant="outline">{session.platform}</Badge>
                         </div>
                       </div>
@@ -133,28 +128,18 @@ export default function StudentSessions() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    {session.covered_parts && (
-                      <p className="text-sm text-muted-foreground mb-3">Topics: {session.covered_parts}</p>
-                    )}
+                    {session.covered_parts && <p className="text-sm text-muted-foreground mb-3">Topics: {session.covered_parts}</p>}
                     <div className="flex items-center gap-2 flex-wrap">
                       {hasRoom && joinable ? (
-                        <Button
-                          size="sm"
-                          className="bg-gradient-accent text-accent-foreground font-semibold shadow-md hover:shadow-lg transition-shadow"
-                          onClick={() => navigate(`/meeting?room=${session.meeting_room_name}&host=false`)}
-                        >
+                        <Button size="sm" className="bg-gradient-accent text-accent-foreground font-semibold shadow-md hover:shadow-lg transition-shadow" onClick={() => navigate(`/meeting?room=${session.meeting_room_name}&host=false`)}>
                           <Video className="w-3.5 h-3.5 mr-1" /> Join Live Session
                         </Button>
                       ) : hasRoom && !past ? (
-                        <Button size="sm" variant="outline" disabled>
-                          <Clock className="w-3.5 h-3.5 mr-1" /> Available 15 min before start
-                        </Button>
+                        <Button size="sm" variant="outline" disabled><Clock className="w-3.5 h-3.5 mr-1" /> Available 15 min before start</Button>
                       ) : null}
                       {session.meeting_link && (
                         <Button size="sm" variant="outline" asChild>
-                          <a href={session.meeting_link} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="w-3 h-3 mr-1" /> External Link
-                          </a>
+                          <a href={session.meeting_link} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-3 h-3 mr-1" /> External Link</a>
                         </Button>
                       )}
                     </div>

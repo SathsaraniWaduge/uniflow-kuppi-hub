@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getAll, query, getById, remove } from "@/mocks/data";
+import type { KuppiRecording, KuppiSession, KuppiNotice, Module } from "@/mocks/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,22 +13,36 @@ export default function ManageRecordings() {
   const [recordings, setRecordings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchRecordings = async () => {
+  const fetchRecordings = () => {
     if (!profile) return;
-    const { data } = await supabase
-      .from("kuppi_recordings")
-      .select("*, kuppi_sessions(session_date, organizer_id, kuppi_notices(title, modules(module_code)))")
-      .order("uploaded_at", { ascending: false });
-    // Filter to organizer's sessions
-    const filtered = (data || []).filter((r: any) => r.kuppi_sessions?.organizer_id === profile.id);
-    setRecordings(filtered);
+    const all = getAll<KuppiRecording>("kuppi_recordings")
+      .sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime());
+
+    const withRelations = all.map((rec) => {
+      const session = getById<KuppiSession>("kuppi_sessions", rec.session_id);
+      const notice = session ? getById<KuppiNotice>("kuppi_notices", session.notice_id) : null;
+      const mod = notice ? getById<Module>("modules", notice.module_id) : null;
+      return {
+        ...rec,
+        kuppi_sessions: session ? {
+          session_date: session.session_date,
+          organizer_id: session.organizer_id,
+          kuppi_notices: notice ? {
+            title: notice.title,
+            modules: mod ? { module_code: mod.module_code } : null,
+          } : null,
+        } : null,
+      };
+    }).filter((r) => r.kuppi_sessions?.organizer_id === profile.id);
+
+    setRecordings(withRelations);
     setLoading(false);
   };
 
   useEffect(() => { fetchRecordings(); }, [profile]);
 
-  const deleteRecording = async (id: string) => {
-    await supabase.from("kuppi_recordings").delete().eq("id", id);
+  const deleteRecording = (id: string) => {
+    remove("kuppi_recordings", id);
     toast.success("Recording deleted");
     fetchRecordings();
   };

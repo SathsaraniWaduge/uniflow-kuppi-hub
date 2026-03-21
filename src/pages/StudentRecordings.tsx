@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { query, getModuleById, getById } from "@/mocks/data";
+import type { StudentModule, KuppiNotice, KuppiSession, KuppiRecording } from "@/mocks/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,34 +31,51 @@ export default function StudentRecordings() {
 
   useEffect(() => {
     if (!profile) return;
-    const fetch = async () => {
-      const { data: mods } = await supabase.from("student_modules").select("module_id").eq("student_id", profile.id);
-      const moduleIds = mods?.map(m => m.module_id) || [];
-      if (moduleIds.length === 0) { setLoading(false); return; }
+    const mods = query<StudentModule>("student_modules", (m) => m.student_id === profile.id);
+    const moduleIds = mods.map((m) => m.module_id);
+    if (moduleIds.length === 0) { setLoading(false); return; }
 
-      const { data: noticeIds } = await supabase.from("kuppi_notices").select("id").in("module_id", moduleIds);
-      if (!noticeIds?.length) { setLoading(false); return; }
+    const notices = query<KuppiNotice>("kuppi_notices", (n) => moduleIds.includes(n.module_id));
+    const noticeIds = notices.map((n) => n.id);
+    if (noticeIds.length === 0) { setLoading(false); return; }
 
-      const { data: sessionIds } = await supabase.from("kuppi_sessions").select("id").in("notice_id", noticeIds.map(n => n.id));
-      if (!sessionIds?.length) { setLoading(false); return; }
+    const sessions = query<KuppiSession>("kuppi_sessions", (s) => noticeIds.includes(s.notice_id));
+    const sessionIds = sessions.map((s) => s.id);
+    if (sessionIds.length === 0) { setLoading(false); return; }
 
-      const { data } = await supabase
-        .from("kuppi_recordings")
-        .select("id, title, file_url, uploaded_at, kuppi_sessions(session_date, covered_parts, platform, kuppi_notices(title, modules(module_code, module_name)))")
-        .in("session_id", sessionIds.map(s => s.id))
-        .order("uploaded_at", { ascending: false });
+    const recs = query<KuppiRecording>("kuppi_recordings", (r) => sessionIds.includes(r.session_id))
+      .sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime());
 
-      setRecordings((data as any) || []);
-      setLoading(false);
-    };
-    fetch();
+    const items: RecordingItem[] = recs.map((rec) => {
+      const session = getById<KuppiSession>("kuppi_sessions", rec.session_id);
+      const notice = session ? getById<KuppiNotice>("kuppi_notices", session.notice_id) : null;
+      const mod = notice ? getModuleById(notice.module_id) : null;
+      return {
+        id: rec.id,
+        title: rec.title,
+        file_url: rec.file_url,
+        uploaded_at: rec.uploaded_at,
+        kuppi_sessions: session ? {
+          session_date: session.session_date,
+          covered_parts: session.covered_parts,
+          platform: session.platform,
+          kuppi_notices: notice ? {
+            title: notice.title,
+            modules: mod ? { module_code: mod.module_code, module_name: mod.module_name } : null,
+          } : null,
+        } : null,
+      };
+    });
+
+    setRecordings(items);
+    setLoading(false);
   }, [profile]);
 
   if (loading) {
     return (
       <div className="space-y-6">
         <div><div className="h-8 w-48 skeleton-shimmer rounded-lg" /><div className="h-4 w-72 skeleton-shimmer rounded mt-2" /></div>
-        <div className="grid gap-4 md:grid-cols-2">{[1, 2, 3, 4].map(i => <div key={i} className="h-44 skeleton-shimmer rounded-lg" />)}</div>
+        <div className="grid gap-4 md:grid-cols-2">{[1, 2, 3, 4].map((i) => <div key={i} className="h-44 skeleton-shimmer rounded-lg" />)}</div>
       </div>
     );
   }
@@ -80,14 +98,8 @@ export default function StudentRecordings() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {recordings.map((rec, i) => (
-            <motion.div
-              key={rec.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06, duration: 0.35 }}
-            >
+            <motion.div key={rec.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06, duration: 0.35 }}>
               <Card className="glass-card-hover group">
-                {/* Thumbnail placeholder */}
                 <div className="relative bg-muted/50 h-32 rounded-t-lg flex items-center justify-center overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5" />
                   <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">

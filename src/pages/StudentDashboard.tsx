@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getAll, query, count } from "@/mocks/data";
+import type { StudentModule, KuppiNotice, KuppiFeedback } from "@/mocks/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bell, Video, BookOpen, Star, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -12,21 +13,16 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     if (!profile) return;
-    const fetchStats = async () => {
-      const { data: mods } = await supabase.from("student_modules").select("module_id").eq("student_id", profile.id);
-      const moduleIds = mods?.map(m => m.module_id) || [];
-      
-      let noticeCount = 0;
-      if (moduleIds.length > 0) {
-        const { count } = await supabase.from("kuppi_notices").select("*", { count: "exact", head: true }).in("module_id", moduleIds);
-        noticeCount = count || 0;
-      }
+    const mods = query<StudentModule>("student_modules", (m) => m.student_id === profile.id);
+    const moduleIds = mods.map((m) => m.module_id);
 
-      const { count: feedbackCount } = await supabase.from("kuppi_feedback").select("*", { count: "exact", head: true }).eq("student_id", profile.id);
+    const noticeCount = moduleIds.length > 0
+      ? count("kuppi_notices", (n: KuppiNotice) => moduleIds.includes(n.module_id))
+      : 0;
 
-      setStats({ notices: noticeCount, recordings: 0, modules: moduleIds.length, feedback: feedbackCount || 0 });
-    };
-    fetchStats();
+    const feedbackCount = count("kuppi_feedback", (f: KuppiFeedback) => f.student_id === profile.id);
+
+    setStats({ notices: noticeCount, recordings: 0, modules: moduleIds.length, feedback: feedbackCount });
   }, [profile]);
 
   const cards = [

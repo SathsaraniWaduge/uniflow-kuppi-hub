@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { query, getById } from "@/mocks/data";
+import type { KuppiFeedback, KuppiSession, KuppiNotice } from "@/mocks/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Star, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
@@ -23,23 +24,33 @@ export default function StudentFeedback() {
 
   useEffect(() => {
     if (!profile) return;
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("kuppi_feedback")
-        .select("id, comment, rating, created_at, kuppi_sessions(session_date, kuppi_notices(title))")
-        .eq("student_id", profile.id)
-        .order("created_at", { ascending: false });
-      setFeedback((data as any) || []);
-      setLoading(false);
-    };
-    fetch();
+    const raw = query<KuppiFeedback>("kuppi_feedback", (f) => f.student_id === profile.id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    const items: FeedbackItem[] = raw.map((fb) => {
+      const session = getById<KuppiSession>("kuppi_sessions", fb.session_id);
+      const notice = session ? getById<KuppiNotice>("kuppi_notices", session.notice_id) : null;
+      return {
+        id: fb.id,
+        comment: fb.comment,
+        rating: fb.rating,
+        created_at: fb.created_at,
+        kuppi_sessions: session ? {
+          session_date: session.session_date,
+          kuppi_notices: notice ? { title: notice.title } : null,
+        } : null,
+      };
+    });
+
+    setFeedback(items);
+    setLoading(false);
   }, [profile]);
 
   if (loading) {
     return (
       <div className="space-y-6">
         <div><div className="h-8 w-48 skeleton-shimmer rounded-lg" /><div className="h-4 w-72 skeleton-shimmer rounded mt-2" /></div>
-        <div className="grid gap-4">{[1, 2].map(i => <div key={i} className="h-28 skeleton-shimmer rounded-lg" />)}</div>
+        <div className="grid gap-4">{[1, 2].map((i) => <div key={i} className="h-28 skeleton-shimmer rounded-lg" />)}</div>
       </div>
     );
   }
@@ -62,12 +73,7 @@ export default function StudentFeedback() {
       ) : (
         <div className="grid gap-4">
           {feedback.map((fb, i) => (
-            <motion.div
-              key={fb.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06, duration: 0.35 }}
-            >
+            <motion.div key={fb.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06, duration: 0.35 }}>
               <Card className="glass-card-hover">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">

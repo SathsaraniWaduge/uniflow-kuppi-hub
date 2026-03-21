@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getAll, insert } from "@/mocks/data";
+import type { Module, KuppiNotice } from "@/mocks/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,7 @@ import { PlusCircle } from "lucide-react";
 export default function CreateNotice() {
   const { profile } = useAuth();
   const navigate = useNavigate();
-  const [modules, setModules] = useState<{ id: string; module_code: string; module_name: string }[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
   const [title, setTitle] = useState("");
   const [moduleId, setModuleId] = useState("");
   const [description, setDescription] = useState("");
@@ -22,24 +23,26 @@ export default function CreateNotice() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.from("modules").select("id, module_code, module_name").then(({ data }) => setModules(data || []));
+    setModules(getAll<Module>("modules"));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
     setLoading(true);
-    const { error } = await supabase.from("kuppi_notices").insert({
-      title,
-      module_id: moduleId,
-      description: description || null,
-      google_form_url: googleFormUrl || null,
-      created_by: profile.id,
-    });
-    if (error) toast.error("Failed to create notice");
-    else {
+    try {
+      insert<KuppiNotice>("kuppi_notices", {
+        title,
+        module_id: moduleId,
+        description: description || null,
+        google_form_url: googleFormUrl || null,
+        created_by: profile.id,
+        created_at: new Date().toISOString(),
+      });
       toast.success("Notice created!");
       navigate("/manage-notices");
+    } catch {
+      toast.error("Failed to create notice");
     }
     setLoading(false);
   };

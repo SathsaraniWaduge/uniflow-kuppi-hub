@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getAll, query, insert, remove } from "@/mocks/data";
+import type { User, Module, StudentModule } from "@/mocks/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,37 +11,43 @@ import { Trash2, Users, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ManageStudents() {
-  const [students, setStudents] = useState<any[]>([]);
-  const [modules, setModules] = useState<any[]>([]);
+  const [students, setStudents] = useState<User[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedModule, setSelectedModule] = useState("");
 
-  const fetchData = async () => {
-    const [{ data: s }, { data: m }, { data: e }] = await Promise.all([
-      supabase.from("profiles").select("id, name, role").eq("role", "student"),
-      supabase.from("modules").select("id, module_code, module_name"),
-      supabase.from("student_modules").select("*, profiles(name), modules(module_code, module_name)"),
-    ]);
-    setStudents(s || []);
-    setModules(m || []);
-    setEnrollments(e || []);
+  const fetchData = () => {
+    const s = query<User>("users", (u) => u.role === "student");
+    const m = getAll<Module>("modules");
+    const e = getAll<StudentModule>("student_modules").map((sm) => {
+      const student = query<User>("users", (u) => u.id === sm.student_id)[0];
+      const mod = getAll<Module>("modules").find((mm) => mm.id === sm.module_id);
+      return { ...sm, profiles: student ? { name: student.name } : null, modules: mod ? { module_code: mod.module_code, module_name: mod.module_name } : null };
+    });
+    setStudents(s);
+    setModules(m);
+    setEnrollments(e);
   };
 
   useEffect(() => { fetchData(); }, []);
 
-  const enroll = async () => {
+  const enroll = () => {
     if (!selectedStudent || !selectedModule) return;
-    const { error } = await supabase.from("student_modules").insert({
+    const existing = query<StudentModule>("student_modules", (sm) => sm.student_id === selectedStudent && sm.module_id === selectedModule);
+    if (existing.length > 0) { toast.error("Already enrolled"); return; }
+    insert<StudentModule>("student_modules", {
       student_id: selectedStudent,
       module_id: selectedModule,
+      enrolled_semester: null,
+      created_at: new Date().toISOString(),
     });
-    if (error) toast.error(error.message.includes("duplicate") ? "Already enrolled" : error.message);
-    else { toast.success("Enrolled!"); fetchData(); }
+    toast.success("Enrolled!");
+    fetchData();
   };
 
-  const removeEnrollment = async (id: string) => {
-    await supabase.from("student_modules").delete().eq("id", id);
+  const removeEnrollment = (id: string) => {
+    remove("student_modules", id);
     toast.success("Removed");
     fetchData();
   };

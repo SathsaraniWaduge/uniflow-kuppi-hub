@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { query, insert } from "@/mocks/data";
+import type { KuppiRegistration } from "@/mocks/data";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -42,27 +43,20 @@ export default function RegisterModal({ open, onOpenChange, notice }: RegisterMo
 
     setLoading(true);
     try {
-      const { data: existing } = await supabase
-        .from("kuppi_registrations")
-        .select("id")
-        .eq("notice_id", notice.id)
-        .eq("student_id", profile?.id || "")
-        .maybeSingle();
-
-      if (existing) {
+      const existing = query<KuppiRegistration>("kuppi_registrations", (r) => r.notice_id === notice.id && r.student_id === (profile?.id || ""));
+      if (existing.length > 0) {
         toast.error("You have already registered for this session.");
         setLoading(false);
         return;
       }
 
-      const { error } = await supabase.from("kuppi_registrations").insert({
+      insert<KuppiRegistration>("kuppi_registrations", {
         notice_id: notice.id,
         student_id: profile?.id || null,
         student_name: name.trim(),
         student_email: email.trim(),
+        registered_at: new Date().toISOString(),
       });
-
-      if (error) throw error;
 
       setSuccess(true);
       toast.success("Registered successfully!");
@@ -87,13 +81,7 @@ export default function RegisterModal({ open, onOpenChange, notice }: RegisterMo
 
         <AnimatePresence mode="wait">
           {success ? (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="flex flex-col items-center py-10 gap-4"
-            >
+            <motion.div key="success" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex flex-col items-center py-10 gap-4">
               <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center">
                 <CheckCircle2 className="w-12 h-12 text-success" />
               </div>
@@ -103,14 +91,7 @@ export default function RegisterModal({ open, onOpenChange, notice }: RegisterMo
               </div>
             </motion.div>
           ) : (
-            <motion.form
-              key="form"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onSubmit={handleSubmit}
-              className="space-y-4"
-            >
+            <motion.form key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onSubmit={handleSubmit} className="space-y-4">
               <div className="p-3 rounded-xl bg-muted/50 border border-border/50">
                 <p className="font-medium text-sm">{notice.title}</p>
                 <div className="flex gap-2 mt-2">
@@ -121,27 +102,12 @@ export default function RegisterModal({ open, onOpenChange, notice }: RegisterMo
 
               <div className="space-y-2">
                 <Label htmlFor="reg-name">Full Name</Label>
-                <Input
-                  id="reg-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  maxLength={100}
-                  required
-                  className="h-11"
-                />
+                <Input id="reg-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} required className="h-11" />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="reg-email">Email</Label>
-                <Input
-                  id="reg-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  maxLength={255}
-                  required
-                  className="h-11"
-                />
+                <Input id="reg-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={255} required className="h-11" />
               </div>
 
               <Button type="submit" className="w-full h-11 bg-gradient-accent text-accent-foreground font-semibold shadow-md hover:shadow-lg transition-shadow" disabled={loading}>
