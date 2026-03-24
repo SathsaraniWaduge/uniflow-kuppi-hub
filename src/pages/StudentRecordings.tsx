@@ -5,14 +5,16 @@ import type { StudentModule, KuppiNotice, KuppiSession, KuppiRecording } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Video, ExternalLink, Calendar, Play } from "lucide-react";
+import { Video, ExternalLink, Calendar, Play, Star } from "lucide-react";
 import { motion } from "framer-motion";
+import FeedbackModal from "@/components/FeedbackModal";
 
 interface RecordingItem {
   id: string;
   title: string;
   file_url: string;
   uploaded_at: string;
+  sessionId: string;
   kuppi_sessions: {
     session_date: string;
     covered_parts: string | null;
@@ -28,6 +30,8 @@ export default function StudentRecordings() {
   const { profile } = useAuth();
   const [recordings, setRecordings] = useState<RecordingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<{ id: string; title: string }>({ id: "", title: "" });
 
   useEffect(() => {
     if (!profile) return;
@@ -55,6 +59,7 @@ export default function StudentRecordings() {
         title: rec.title,
         file_url: rec.file_url,
         uploaded_at: rec.uploaded_at,
+        sessionId: rec.session_id,
         kuppi_sessions: session ? {
           session_date: session.session_date,
           covered_parts: session.covered_parts,
@@ -70,6 +75,11 @@ export default function StudentRecordings() {
     setRecordings(items);
     setLoading(false);
   }, [profile]);
+
+  const openFeedback = (sessionId: string, title: string) => {
+    setSelectedSession({ id: sessionId, title });
+    setFeedbackOpen(true);
+  };
 
   if (loading) {
     return (
@@ -123,17 +133,33 @@ export default function StudentRecordings() {
                   {rec.kuppi_sessions?.covered_parts && (
                     <p className="text-xs text-muted-foreground mb-3 line-clamp-2">Covered: {rec.kuppi_sessions.covered_parts}</p>
                   )}
-                  <Button size="sm" className="bg-gradient-primary text-primary-foreground font-medium shadow-sm" asChild>
-                    <a href={rec.file_url} target="_blank" rel="noopener noreferrer">
-                      <Video className="w-3 h-3 mr-1" /> Watch Now <ExternalLink className="w-3 h-3 ml-1" />
-                    </a>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" className="bg-gradient-primary text-primary-foreground font-medium shadow-sm" asChild>
+                      <a href={rec.file_url} target="_blank" rel="noopener noreferrer">
+                        <Video className="w-3 h-3 mr-1" /> Watch <ExternalLink className="w-3 h-3 ml-1" />
+                      </a>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openFeedback(rec.sessionId, rec.kuppi_sessions?.kuppi_notices?.title || rec.title)}
+                    >
+                      <Star className="w-3 h-3 mr-1" /> Rate
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
           ))}
         </div>
       )}
+
+      <FeedbackModal
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        sessionId={selectedSession.id}
+        sessionTitle={selectedSession.title}
+      />
     </div>
   );
 }
