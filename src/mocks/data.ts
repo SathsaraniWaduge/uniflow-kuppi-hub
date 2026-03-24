@@ -50,6 +50,8 @@ export interface KuppiRegistration {
   student_id: string | null;
   student_name: string;
   student_email: string;
+  it_number: string;
+  phone_number: string;
   registered_at: string;
 }
 
