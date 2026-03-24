@@ -1,7 +1,7 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { BookOpen, LayoutDashboard, Bell, Video, MessageSquare, Settings, LogOut, PlusCircle, Users, FileText, Menu, X, Radio } from "lucide-react";
+import { BookOpen, LayoutDashboard, Bell, Video, MessageSquare, Settings, LogOut, PlusCircle, Users, FileText, Menu, X, Radio, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
