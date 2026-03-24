@@ -148,9 +148,9 @@ function createSeedData(): MockDB {
   ];
 
   const kuppi_registrations: KuppiRegistration[] = [
-    { id: uuid(), notice_id: "b1000001-0001-4000-8000-000000000001", student_id: studentId, student_name: "Sathsarani Waduge", student_email: "sathsarani@sliit.lk", registered_at: "2026-03-05T10:00:00Z" },
-    { id: uuid(), notice_id: "b1000001-0003-4000-8000-000000000003", student_id: studentId, student_name: "Sathsarani Waduge", student_email: "sathsarani@sliit.lk", registered_at: "2026-03-05T11:00:00Z" },
-    { id: uuid(), notice_id: "b1000001-0005-4000-8000-000000000005", student_id: studentId, student_name: "Sathsarani Waduge", student_email: "sathsarani@sliit.lk", registered_at: "2026-03-05T12:00:00Z" },
+    { id: uuid(), notice_id: "b1000001-0001-4000-8000-000000000001", student_id: studentId, student_name: "Sathsarani Waduge", student_email: "sathsarani@sliit.lk", it_number: "IT21234567", phone_number: "0771234567", registered_at: "2026-03-05T10:00:00Z" },
+    { id: uuid(), notice_id: "b1000001-0003-4000-8000-000000000003", student_id: studentId, student_name: "Sathsarani Waduge", student_email: "sathsarani@sliit.lk", it_number: "IT21234567", phone_number: "0771234567", registered_at: "2026-03-05T11:00:00Z" },
+    { id: uuid(), notice_id: "b1000001-0005-4000-8000-000000000005", student_id: studentId, student_name: "Sathsarani Waduge", student_email: "sathsarani@sliit.lk", it_number: "IT21234567", phone_number: "0771234567", registered_at: "2026-03-05T12:00:00Z" },
   ];
 
   const kuppi_sessions: KuppiSession[] = [

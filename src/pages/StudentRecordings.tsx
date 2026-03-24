@@ -5,9 +5,10 @@ import type { StudentModule, KuppiNotice, KuppiSession, KuppiRecording } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Video, ExternalLink, Calendar, Play, Star } from "lucide-react";
+import { Video, ExternalLink, Calendar, Play, Star, GraduationCap, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import FeedbackModal from "@/components/FeedbackModal";
+import heroImg from "@/assets/recordings-hero.jpg";
 
 interface RecordingItem {
   id: string;
@@ -15,15 +16,12 @@ interface RecordingItem {
   file_url: string;
   uploaded_at: string;
   sessionId: string;
-  kuppi_sessions: {
-    session_date: string;
-    covered_parts: string | null;
-    platform: string;
-    kuppi_notices: {
-      title: string;
-      modules: { module_code: string; module_name: string } | null;
-    } | null;
-  } | null;
+  kuppiTitle: string;
+  moduleCode: string;
+  moduleName: string;
+  sessionDate: string;
+  coveredParts: string | null;
+  platform: string;
 }
 
 export default function StudentRecordings() {
@@ -60,15 +58,12 @@ export default function StudentRecordings() {
         file_url: rec.file_url,
         uploaded_at: rec.uploaded_at,
         sessionId: rec.session_id,
-        kuppi_sessions: session ? {
-          session_date: session.session_date,
-          covered_parts: session.covered_parts,
-          platform: session.platform,
-          kuppi_notices: notice ? {
-            title: notice.title,
-            modules: mod ? { module_code: mod.module_code, module_name: mod.module_name } : null,
-          } : null,
-        } : null,
+        kuppiTitle: notice?.title || rec.title,
+        moduleCode: mod?.module_code || "",
+        moduleName: mod?.module_name || "",
+        sessionDate: session?.session_date || "",
+        coveredParts: session?.covered_parts || null,
+        platform: session?.platform || "",
       };
     });
 
@@ -84,18 +79,32 @@ export default function StudentRecordings() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div><div className="h-8 w-48 skeleton-shimmer rounded-lg" /><div className="h-4 w-72 skeleton-shimmer rounded mt-2" /></div>
-        <div className="grid gap-4 md:grid-cols-2">{[1, 2, 3, 4].map((i) => <div key={i} className="h-44 skeleton-shimmer rounded-lg" />)}</div>
+        <div className="h-40 skeleton-shimmer rounded-2xl" />
+        <div className="grid gap-4 md:grid-cols-2">{[1, 2, 3, 4].map((i) => <div key={i} className="h-52 skeleton-shimmer rounded-lg" />)}</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold font-display">Recordings Library</h1>
-        <p className="text-muted-foreground mt-1">Watch past kuppi sessions for your modules</p>
-      </div>
+      {/* Hero Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative rounded-2xl overflow-hidden h-44 sm:h-48"
+      >
+        <img src={heroImg} alt="Students watching recordings" width={1280} height={512} className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-foreground/80 via-foreground/50 to-transparent" />
+        <div className="relative z-10 flex flex-col justify-center h-full px-6 sm:px-8">
+          <div className="flex items-center gap-2 mb-2">
+            <GraduationCap className="w-6 h-6 text-secondary" />
+            <span className="text-secondary font-semibold text-sm uppercase tracking-wide">UniFlow</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold font-display text-primary-foreground">Recordings Library</h1>
+          <p className="text-primary-foreground/70 text-sm mt-1 max-w-md">Watch past kuppi sessions and leave feedback to help organizers improve</p>
+        </div>
+      </motion.div>
 
       {recordings.length === 0 ? (
         <Card className="glass-card">
@@ -109,29 +118,32 @@ export default function StudentRecordings() {
         <div className="grid gap-4 md:grid-cols-2">
           {recordings.map((rec, i) => (
             <motion.div key={rec.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06, duration: 0.35 }}>
-              <Card className="glass-card-hover group">
-                <div className="relative bg-muted/50 h-32 rounded-t-lg flex items-center justify-center overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5" />
-                  <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Play className="w-6 h-6 text-primary ml-0.5" />
+              <Card className="glass-card-hover group overflow-hidden">
+                {/* Thumbnail area */}
+                <div className="relative bg-muted/50 h-36 flex items-center justify-center overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-secondary/10" />
+                  <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
+                    <Play className="w-7 h-7 text-primary ml-0.5" />
                   </div>
-                  <Badge className="absolute top-3 left-3 bg-primary/90 text-primary-foreground text-[10px]">
-                    {rec.kuppi_sessions?.platform}
-                  </Badge>
+                  <Badge className="absolute top-3 left-3 bg-primary/90 text-primary-foreground text-[10px]">{rec.platform}</Badge>
+                  <Badge variant="outline" className="absolute top-3 right-3 bg-card/80 backdrop-blur text-[10px]">{rec.moduleCode}</Badge>
                 </div>
+
                 <CardHeader className="pb-2 pt-4">
-                  <CardTitle className="font-display text-base">{rec.title}</CardTitle>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">{rec.kuppi_sessions?.kuppi_notices?.modules?.module_code}</Badge>
+                  <CardTitle className="font-display text-base leading-snug">{rec.title}</CardTitle>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">{rec.moduleName}</Badge>
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {new Date(rec.kuppi_sessions?.session_date || "").toLocaleDateString()}
+                      {new Date(rec.sessionDate).toLocaleDateString()}
                     </span>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {rec.kuppi_sessions?.covered_parts && (
-                    <p className="text-xs text-muted-foreground mb-3 line-clamp-2">Covered: {rec.kuppi_sessions.covered_parts}</p>
+                  {rec.coveredParts && (
+                    <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                      <span className="font-medium text-foreground/70">Covered:</span> {rec.coveredParts}
+                    </p>
                   )}
                   <div className="flex items-center gap-2">
                     <Button size="sm" className="bg-gradient-primary text-primary-foreground font-medium shadow-sm" asChild>
@@ -142,9 +154,10 @@ export default function StudentRecordings() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => openFeedback(rec.sessionId, rec.kuppi_sessions?.kuppi_notices?.title || rec.title)}
+                      onClick={() => openFeedback(rec.sessionId, rec.kuppiTitle)}
+                      className="gap-1"
                     >
-                      <Star className="w-3 h-3 mr-1" /> Rate
+                      <MessageSquare className="w-3 h-3" /> Feedback
                     </Button>
                   </div>
                 </CardContent>
