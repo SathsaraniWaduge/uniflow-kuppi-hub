@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { PlusCircle } from "lucide-react";
+import { motion } from "framer-motion";
+import noticeBg from "@/assets/notice-bg.jpg";
 
 export default function CreateNotice() {
   const { profile } = useAuth();
@@ -48,49 +50,66 @@ export default function CreateNotice() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-3xl font-bold font-display">Create Notice</h1>
-        <p className="text-muted-foreground mt-1">Post a new kuppi session notice</p>
-      </div>
+    <div
+      className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center -m-6 md:-m-8 p-6 md:p-8"
+      style={{
+        backgroundImage: `url(${noticeBg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
 
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle className="font-display flex items-center gap-2">
-            <PlusCircle className="w-5 h-5" /> New Kuppi Notice
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
-              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Data Structures Revision Kuppi" required />
-            </div>
-            <div className="space-y-2">
-              <Label>Module</Label>
-              <Select value={moduleId} onValueChange={setModuleId} required>
-                <SelectTrigger><SelectValue placeholder="Select module" /></SelectTrigger>
-                <SelectContent>
-                  {modules.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.module_code} – {m.module_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="desc">Description</Label>
-              <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What will be covered..." rows={4} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="form-url">Google Form URL (optional)</Label>
-              <Input id="form-url" value={googleFormUrl} onChange={(e) => setGoogleFormUrl(e.target.value)} placeholder="https://forms.google.com/..." type="url" />
-            </div>
-            <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
-              {loading ? "Creating..." : "Create Notice"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="relative z-10 w-full max-w-xl"
+      >
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold font-display">Create Notice</h1>
+          <p className="text-muted-foreground mt-1">Post a new kuppi session notice</p>
+        </div>
+
+        <Card className="glass-card shadow-xl border-primary/10">
+          <CardHeader>
+            <CardTitle className="font-display flex items-center gap-2">
+              <PlusCircle className="w-5 h-5 text-primary" /> New Kuppi Notice
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
+                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Data Structures Revision Kuppi" required />
+              </div>
+              <div className="space-y-2">
+                <Label>Module</Label>
+                <Select value={moduleId} onValueChange={setModuleId} required>
+                  <SelectTrigger><SelectValue placeholder="Select module" /></SelectTrigger>
+                  <SelectContent>
+                    {modules.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.module_code} – {m.module_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="desc">Description</Label>
+                <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What will be covered..." rows={4} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="form-url">Google Form URL (optional)</Label>
+                <Input id="form-url" value={googleFormUrl} onChange={(e) => setGoogleFormUrl(e.target.value)} placeholder="https://forms.google.com/..." type="url" />
+              </div>
+              <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
+                {loading ? "Creating..." : "Create Notice"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }
