@@ -18,6 +18,7 @@ import ManageRecordings from "./pages/ManageRecordings";
 import ManageModules from "./pages/ManageModules";
 import ManageStudents from "./pages/ManageStudents";
 import MeetingRoom from "./pages/MeetingRoom";
+import CreateRecording from "./pages/CreateRecording";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
