@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ExternalLink, Calendar, BookOpen, UserPlus, Search, CheckCircle2 } from "lucide-react";
+import { ExternalLink, Calendar, BookOpen, UserPlus, Search, CheckCircle2, GraduationCap, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import RegisterModal from "@/components/RegisterModal";
+import heroImg from "@/assets/student-notices-hero.jpg";
 
 interface NoticeWithModule {
   id: string;
@@ -44,11 +45,8 @@ export default function StudentNotices() {
     const withModules: NoticeWithModule[] = rawNotices.map((n) => {
       const mod = getModuleById(n.module_id);
       return {
-        id: n.id,
-        title: n.title,
-        description: n.description,
-        google_form_url: n.google_form_url,
-        created_at: n.created_at,
+        id: n.id, title: n.title, description: n.description,
+        google_form_url: n.google_form_url, created_at: n.created_at,
         modules: mod ? { module_code: mod.module_code, module_name: mod.module_name, year: mod.year, semester: mod.semester } : null,
       };
     });
@@ -65,33 +63,43 @@ export default function StudentNotices() {
     return !q || n.title.toLowerCase().includes(q) || n.modules?.module_code.toLowerCase().includes(q) || n.modules?.module_name.toLowerCase().includes(q);
   });
 
+  const getRegCount = (noticeId: string) =>
+    query<KuppiRegistration>("kuppi_registrations", (r) => r.notice_id === noticeId).length;
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <div className="h-8 w-48 skeleton-shimmer rounded-lg" />
-          <div className="h-4 w-72 skeleton-shimmer rounded mt-2" />
-        </div>
-        <div className="grid gap-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-40 skeleton-shimmer rounded-lg" />
-          ))}
-        </div>
+        <div className="h-40 skeleton-shimmer rounded-2xl" />
+        <div className="grid gap-4">{[1, 2, 3].map((i) => <div key={i} className="h-40 skeleton-shimmer rounded-lg" />)}</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold font-display">Kuppi Notices</h1>
-          <p className="text-muted-foreground mt-1">Sessions available for your enrolled modules</p>
+      {/* Hero Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative rounded-2xl overflow-hidden h-44 sm:h-48"
+      >
+        <img src={heroImg} alt="Students studying" width={1280} height={512} className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-foreground/80 via-foreground/50 to-transparent" />
+        <div className="relative z-10 flex flex-col justify-center h-full px-6 sm:px-8">
+          <div className="flex items-center gap-2 mb-2">
+            <GraduationCap className="w-6 h-6 text-secondary" />
+            <span className="text-secondary font-semibold text-sm uppercase tracking-wide">UniFlow</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold font-display text-primary-foreground">Kuppi Notices</h1>
+          <p className="text-primary-foreground/70 text-sm mt-1 max-w-md">Browse and register for upcoming kuppi sessions for your enrolled modules</p>
         </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search notices..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-10" />
-        </div>
+      </motion.div>
+
+      {/* Search */}
+      <div className="relative w-full sm:w-80">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input placeholder="Search by title or module..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-10" />
       </div>
 
       {filteredNotices.length === 0 ? (
@@ -105,47 +113,49 @@ export default function StudentNotices() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
           {filteredNotices.map((notice, i) => {
             const isRegistered = registeredNotices.has(notice.id);
+            const regCount = getRegCount(notice.id);
             return (
               <motion.div key={notice.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05, duration: 0.35 }}>
-                <Card className="glass-card-hover">
+                <Card className="glass-card-hover h-full flex flex-col">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
-                        <CardTitle className="font-display text-lg">{notice.title}</CardTitle>
+                        <CardTitle className="font-display text-lg leading-snug">{notice.title}</CardTitle>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/15">{notice.modules?.module_code}</Badge>
                           <Badge variant="outline" className="text-muted-foreground">{notice.modules?.module_name}</Badge>
-                          {notice.modules && (
-                            <span className="text-xs text-muted-foreground/60">Year {notice.modules.year} · Sem {notice.modules.semester}</span>
-                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(notice.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {notice.description && <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{notice.description}</p>}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {notice.google_form_url && (
-                        <Button size="sm" variant="outline" onClick={() => window.open(notice.google_form_url!, "_blank")} className="text-xs">
-                          Google Form <ExternalLink className="w-3 h-3 ml-1" />
-                        </Button>
-                      )}
-                      {isRegistered ? (
-                        <Badge className="bg-success/10 text-success border-success/20 gap-1 py-1.5 px-3">
+                      {isRegistered && (
+                        <Badge className="bg-success/10 text-success border-success/20 gap-1 py-1.5 px-2.5 shrink-0">
                           <CheckCircle2 className="w-3 h-3" /> Registered
                         </Badge>
-                      ) : (
-                        <Button size="sm" className="bg-gradient-accent text-accent-foreground font-semibold shadow-sm hover:shadow-md transition-shadow" onClick={() => setSelectedNotice(notice)}>
-                          <UserPlus className="w-3.5 h-3.5 mr-1" /> Register
-                        </Button>
                       )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex flex-col justify-between">
+                    {notice.description && <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{notice.description}</p>}
+                    <div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(notice.created_at).toLocaleDateString()}</span>
+                        {notice.modules && <span>Year {notice.modules.year} · Sem {notice.modules.semester}</span>}
+                        <span className="flex items-center gap-1"><Users className="w-3 h-3" />{regCount} registered</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {notice.google_form_url && (
+                          <Button size="sm" variant="outline" onClick={() => window.open(notice.google_form_url!, "_blank")} className="text-xs">
+                            Google Form <ExternalLink className="w-3 h-3 ml-1" />
+                          </Button>
+                        )}
+                        {!isRegistered && (
+                          <Button size="sm" className="bg-gradient-accent text-accent-foreground font-semibold shadow-sm hover:shadow-md transition-shadow" onClick={() => setSelectedNotice(notice)}>
+                            <UserPlus className="w-3.5 h-3.5 mr-1" /> Register Now
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -159,10 +169,7 @@ export default function StudentNotices() {
         <RegisterModal
           open={!!selectedNotice}
           onOpenChange={(o) => {
-            if (!o) {
-              refreshRegistered();
-              setSelectedNotice(null);
-            }
+            if (!o) { refreshRegistered(); setSelectedNotice(null); }
           }}
           notice={selectedNotice}
         />
