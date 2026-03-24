@@ -19,6 +19,7 @@ const organizerLinks = [
   { to: "/manage-notices", label: "Manage Notices", icon: FileText },
   { to: "/manage-sessions", label: "Sessions", icon: Settings },
   { to: "/manage-recordings", label: "Recordings", icon: Video },
+  { to: "/create-recording", label: "Upload Recording", icon: Upload },
   { to: "/manage-modules", label: "Modules", icon: BookOpen },
   { to: "/manage-students", label: "Students", icon: Users },
 ];
