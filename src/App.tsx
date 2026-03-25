@@ -23,37 +23,39 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Navigate to="/auth" replace />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            {/* Student routes */}
-            <Route path="/notices" element={<ProtectedRoute role="student"><StudentNotices /></ProtectedRoute>} />
-            <Route path="/recordings" element={<ProtectedRoute role="student"><StudentRecordings /></ProtectedRoute>} />
-            <Route path="/sessions" element={<ProtectedRoute role="student"><StudentSessions /></ProtectedRoute>} />
-            <Route path="/my-feedback" element={<ProtectedRoute role="student"><StudentFeedback /></ProtectedRoute>} />
-            {/* Organizer routes */}
-            <Route path="/create-notice" element={<ProtectedRoute role="organizer"><CreateNotice /></ProtectedRoute>} />
-            <Route path="/manage-notices" element={<ProtectedRoute role="organizer"><ManageNotices /></ProtectedRoute>} />
-            <Route path="/manage-sessions" element={<ProtectedRoute role="organizer"><ManageSessions /></ProtectedRoute>} />
-            <Route path="/manage-recordings" element={<ProtectedRoute role="organizer"><ManageRecordings /></ProtectedRoute>} />
-            <Route path="/create-recording" element={<ProtectedRoute role="organizer"><CreateRecording /></ProtectedRoute>} />
-            <Route path="/manage-modules" element={<ProtectedRoute role="organizer"><ManageModules /></ProtectedRoute>} />
-            <Route path="/manage-students" element={<ProtectedRoute role="organizer"><ManageStudents /></ProtectedRoute>} />
-            <Route path="/meeting" element={<ProtectedRoute><MeetingRoom /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Navigate to="/auth" replace />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              {/* Student routes */}
+              <Route path="/notices" element={<ProtectedRoute role="student"><StudentNotices /></ProtectedRoute>} />
+              <Route path="/recordings" element={<ProtectedRoute role="student"><StudentRecordings /></ProtectedRoute>} />
+              <Route path="/sessions" element={<ProtectedRoute role="student"><StudentSessions /></ProtectedRoute>} />
+              <Route path="/my-feedback" element={<ProtectedRoute role="student"><StudentFeedback /></ProtectedRoute>} />
+              {/* Organizer routes */}
+              <Route path="/create-notice" element={<ProtectedRoute role="organizer"><CreateNotice /></ProtectedRoute>} />
+              <Route path="/manage-notices" element={<ProtectedRoute role="organizer"><ManageNotices /></ProtectedRoute>} />
+              <Route path="/manage-sessions" element={<ProtectedRoute role="organizer"><ManageSessions /></ProtectedRoute>} />
+              <Route path="/manage-recordings" element={<ProtectedRoute role="organizer"><ManageRecordings /></ProtectedRoute>} />
+              <Route path="/create-recording" element={<ProtectedRoute role="organizer"><CreateRecording /></ProtectedRoute>} />
+              <Route path="/manage-modules" element={<ProtectedRoute role="organizer"><ManageModules /></ProtectedRoute>} />
+              <Route path="/manage-students" element={<ProtectedRoute role="organizer"><ManageStudents /></ProtectedRoute>} />
+              <Route path="/meeting" element={<ProtectedRoute><MeetingRoom /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
